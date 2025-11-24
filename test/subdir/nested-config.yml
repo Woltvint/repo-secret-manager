@@ -1,0 +1,12 @@
+services:
+  database:
+    password: super_secret_password_123
+    connection_string: "postgres://admin:super_secret_password_123@localhost/db"
+  
+  redis:
+    password: jwt_token_secret_12345
+    url: "redis://:jwt_token_secret_12345@localhost:6379"
+  
+  payment:
+    stripe_key: sk_test_stripe_key_abc123
+    stripe_secret: my_api_secret_key_xyz

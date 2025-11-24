@@ -1,0 +1,5 @@
+DATABASE_URL=postgresql://user:super_secret_password_123@localhost/mydb
+API_KEY=sk-1234567890abcdefghijklmnop
+API_SECRET=my_api_secret_key_xyz
+JWT_SECRET=jwt_token_secret_12345
+STRIPE_KEY=sk_test_stripe_key_abc123

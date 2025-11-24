@@ -1,0 +1,12 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "username": "admin",
+    "password": "super_secret_password_123"
+  },
+  "api": {
+    "key": "sk-1234567890abcdefghijklmnop",
+    "secret": "my_api_secret_key_xyz"
+  }
+}

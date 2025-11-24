@@ -1,0 +1,7 @@
+# Test artifacts
+test-secrets.json
+backup/
+*.backup
+
+# Secrets file
+secrets.json

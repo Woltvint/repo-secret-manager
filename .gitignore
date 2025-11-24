@@ -1,0 +1,16 @@
+node_modules/
+
+# Test artifacts
+test/test-secrets.json
+test/backup/
+
+# Secrets file
+secrets.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
