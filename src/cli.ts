@@ -1,13 +1,20 @@
 #!/usr/bin/env node
-const { Command } = require('commander');
-const program = new Command();
-const path = require('path');
-const fs = require('fs');
-const vault = require('./vault');
-const { v4: uuidv4 } = require('uuid');
-const replace = require('./replace');
+import { Command } from 'commander';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as vault from './vault';
+import { v4 as uuidv4 } from 'uuid';
+import * as replace from './replace';
+import { SecretData, SecretsMap } from './replace';
 
-function findGitRoot(startPath) {
+const program = new Command();
+
+/**
+ * Finds the root directory of a git repository
+ * @param startPath - Starting path to search from
+ * @returns Path to git root or null if not found
+ */
+function findGitRoot(startPath?: string): string | null {
   let currentPath = path.resolve(startPath || '.');
   
   while (currentPath !== path.parse(currentPath).root) {
@@ -20,7 +27,12 @@ function findGitRoot(startPath) {
   return null;
 }
 
-function getSecretsPath(repoPath) {
+/**
+ * Gets the path to the secrets file in the git repository
+ * @param repoPath - Path to the repository
+ * @returns Path to the secrets file
+ */
+function getSecretsPath(repoPath?: string): string {
   const gitRoot = findGitRoot(repoPath || '.');
   if (!gitRoot) {
     console.error('Error: Not in a git repository');
@@ -34,7 +46,7 @@ function getSecretsPath(repoPath) {
 program
   .name('uu-secret-manager')
   .description('CLI to manage secrets in files and folders')
-  .version('1.0.0')
+  .version('2.0.0')
   .option('-r, --repo <path>', 'Path to git repository (default: current directory)', '.')
   .option('-p, --password <password>', 'Vault password (not recommended for security)')
   .option('-f, --password-file <path>', 'Path to file containing vault password')
@@ -55,16 +67,18 @@ Examples:
 program
   .command('list')
   .description('List all secrets in the store')
-  .action(async (options, command) => {
+  .action(async (_options, command) => {
     try {
-      const globalOpts = command.parent.opts();
+      const globalOpts = command.parent!.opts();
       const repoPath = globalOpts.repo;
       const secretsPath = getSecretsPath(repoPath);
       const password = await vault.getPassword(globalOpts);
       const decrypted = await vault.decryptVaultFile(secretsPath, password);
-      const secrets = JSON.parse(decrypted);
+      const secrets: SecretsMap = JSON.parse(decrypted);
+      
       console.log('Secrets:');
       console.log('━'.repeat(80));
+      
       Object.entries(secrets).forEach(([uuid, data]) => {
         // Handle both old format (string) and new format (object)
         const secret = typeof data === 'string' ? data : data.secret;
@@ -81,10 +95,11 @@ program
         }
         console.log(`Placeholder: <!secret_${uuid}!>`);
       });
+      
       console.log('\n' + '━'.repeat(80));
       console.log(`Total secrets: ${Object.keys(secrets).length}`);
     } catch (err) {
-      console.error('Error listing secrets:', err.message);
+      console.error('Error listing secrets:', (err as Error).message);
       process.exit(1);
     }
   });
@@ -92,13 +107,14 @@ program
 program
   .command('add <secret> [description]')
   .description('Add a secret to the store with optional description')
-  .action(async (secret, description, options, command) => {
+  .action(async (secret: string, description: string | undefined, _options, command) => {
     try {
-      const globalOpts = command.parent.opts();
+      const globalOpts = command.parent!.opts();
       const repoPath = globalOpts.repo;
       const secretsPath = getSecretsPath(repoPath);
       const password = await vault.getPassword(globalOpts);
-      let secrets = {};
+      let secrets: SecretsMap = {};
+      
       try {
         const decrypted = await vault.decryptVaultFile(secretsPath, password);
         secrets = JSON.parse(decrypted);
@@ -123,13 +139,14 @@ program
         description: description || '',
         created: new Date().toISOString()
       };
+      
       await vault.encryptVaultFile(secretsPath, password, JSON.stringify(secrets, null, 2));
       console.log(`Secret added with placeholder: <!secret_${uuid}!>`);
       if (description) {
         console.log(`Description: ${description}`);
       }
     } catch (err) {
-      console.error('Error adding secret:', err.message);
+      console.error('Error adding secret:', (err as Error).message);
       process.exit(1);
     }
   });
@@ -137,9 +154,9 @@ program
 program
   .command('replace [path]')
   .description('Replace secrets in files with placeholders (default: entire repo)')
-  .action(async (targetPath, options, command) => {
+  .action(async (targetPath: string | undefined, _options, command) => {
     try {
-      const globalOpts = command.parent.opts();
+      const globalOpts = command.parent!.opts();
       const repoPath = globalOpts.repo;
       const gitRoot = findGitRoot(repoPath);
       if (!gitRoot) {
@@ -152,8 +169,9 @@ program
       
       const password = await vault.getPassword(globalOpts);
       const decrypted = await vault.decryptVaultFile(secretsPath, password);
-      const secrets = JSON.parse(decrypted);
+      const secrets: SecretsMap = JSON.parse(decrypted);
       let replacedFiles = 0;
+      
       const stats = fs.statSync(searchPath);
       if (stats.isFile()) {
         if (replace.replaceSecretsInFile(searchPath, secrets)) {
@@ -170,11 +188,12 @@ program
           }
         });
       }
+      
       if (replacedFiles === 0) {
         console.log('No secrets replaced.');
       }
     } catch (err) {
-      console.error('Error replacing secrets:', err.message);
+      console.error('Error replacing secrets:', (err as Error).message);
       process.exit(1);
     }
   });
@@ -182,9 +201,9 @@ program
 program
   .command('reverse [path]')
   .description('Reverse placeholders back to secrets in files (default: entire repo)')
-  .action(async (targetPath, options, command) => {
+  .action(async (targetPath: string | undefined, _options, command) => {
     try {
-      const globalOpts = command.parent.opts();
+      const globalOpts = command.parent!.opts();
       const repoPath = globalOpts.repo;
       const gitRoot = findGitRoot(repoPath);
       if (!gitRoot) {
@@ -197,8 +216,9 @@ program
       
       const password = await vault.getPassword(globalOpts);
       const decrypted = await vault.decryptVaultFile(secretsPath, password);
-      const secrets = JSON.parse(decrypted);
+      const secrets: SecretsMap = JSON.parse(decrypted);
       let reversedFiles = 0;
+      
       const stats = fs.statSync(searchPath);
       if (stats.isFile()) {
         if (replace.reverseSecretsInFile(searchPath, secrets)) {
@@ -215,11 +235,12 @@ program
           }
         });
       }
+      
       if (reversedFiles === 0) {
         console.log('No placeholders reversed.');
       }
     } catch (err) {
-      console.error('Error reversing placeholders:', err.message);
+      console.error('Error reversing placeholders:', (err as Error).message);
       process.exit(1);
     }
   });
@@ -229,9 +250,9 @@ program
   .description('Install git pre-commit hook to check for secrets')
   .action(() => {
     try {
-      require('./install-hook.js');
+      require('./install-hook');
     } catch (err) {
-      console.error('Error installing hook:', err.message);
+      console.error('Error installing hook:', (err as Error).message);
     }
   });
 
@@ -239,7 +260,6 @@ program
   .command('remove-hook')
   .description('Remove git pre-commit hook')
   .action(() => {
-    const fs = require('fs');
     const GREEN = '\x1b[32m';
     const RED = '\x1b[31m';
     const YELLOW = '\x1b[33m';

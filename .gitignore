@@ -1,5 +1,8 @@
 node_modules/
 
+# Build artifacts
+dist/
+
 # Test artifacts - tests run in /tmp but keep test-data for reference
 test-data/uu-secret-manager.json
 test-data/backup/
@@ -14,3 +17,15 @@ npm-debug.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Old JS files (keep for reference during migration)
+# Uncomment to remove from git tracking:
+# cli.js
+# vault.js
+# replace.js
+# install-hook.js
+# test.js
+

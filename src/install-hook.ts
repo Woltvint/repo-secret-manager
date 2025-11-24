@@ -1,14 +1,16 @@
 #!/usr/bin/env node
-
-const fs = require('fs');
-const path = require('path');
+import * as fs from 'fs';
+import * as path from 'path';
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
 const RESET = '\x1b[0m';
 
-function installHook() {
+/**
+ * Installs the pre-commit hook for checking secrets before commits
+ */
+function installHook(): void {
   // Check if we're in a git repository
   if (!fs.existsSync('.git')) {
     console.error(`${RED}Error: Not a git repository${RESET}`);
@@ -23,7 +25,7 @@ function installHook() {
   }
 
   // Find the pre-commit hook source
-  const hookSource = path.join(__dirname, '.githooks', 'pre-commit');
+  const hookSource = path.join(__dirname, '..', '.githooks', 'pre-commit');
   const hookDest = path.join(hooksDir, 'pre-commit');
 
   if (!fs.existsSync(hookSource)) {

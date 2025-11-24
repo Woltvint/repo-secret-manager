@@ -1,26 +1,51 @@
 {
   "name": "uu-secret-manager",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "CLI tool to manage secrets in files with encrypted storage",
-  "main": "cli.js",
+  "main": "dist/cli.js",
+  "types": "dist/cli.d.ts",
   "bin": {
-    "uu-secret-manager": "./cli.js",
-    "usm": "./cli.js"
+    "uu-secret-manager": "./dist/cli.js",
+    "usm": "./dist/cli.js"
   },
   "scripts": {
-    "test": "node --test test.js"
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "npm run build && node --test dist/test.js",
+    "prepublishOnly": "npm run build"
   },
+  "files": [
+    "dist/**/*",
+    ".githooks/**/*",
+    "LICENSE",
+    "README.md"
+  ],
   "keywords": [
     "secrets",
     "ansible-vault",
     "cli",
-    "encryption"
+    "encryption",
+    "typescript"
   ],
   "author": "Patrik Němeček",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Woltvint/uu-secret-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Woltvint/uu-secret-manager/issues"
+  },
+  "homepage": "https://github.com/Woltvint/uu-secret-manager#readme",
   "dependencies": {
     "ansible-vault": "^1.3.0",
     "commander": "^11.0.0",
     "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/uuid": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }

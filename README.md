@@ -1,6 +1,6 @@
 # uu-secret-manager
 
-A Node.js CLI tool to manage secrets in Git repositories using encrypted storage with ansible-vault.
+A Node.js CLI tool to manage secrets in Git repositories using encrypted storage with ansible-vault. Written in TypeScript for type safety and better developer experience.
 
 ## Features
 
@@ -12,6 +12,7 @@ A Node.js CLI tool to manage secrets in Git repositories using encrypted storage
 - Reverse placeholders back to original secrets
 - Works exclusively with git repositories
 - Git pre-commit hook to prevent committing unencrypted secrets
+- **TypeScript** for enhanced type safety and developer experience
 
 ## Prerequisites
 
@@ -174,4 +175,43 @@ uu-secret-manager -r /path/to/other/repo list
 ## License
 
 MIT
+
+## Development
+
+This project is written in TypeScript. The source files are in the `src/` directory and compiled to JavaScript in the `dist/` directory.
+
+### Setup
+
+```bash
+npm install
+```
+
+### Build
+
+```bash
+npm run build
+```
+
+### Watch Mode
+
+```bash
+npm run watch
+```
+
+### Testing
+
+```bash
+npm test
+```
+
+### Project Structure
+
+```
+src/
+├── cli.ts          # Main CLI entry point
+├── vault.ts        # Vault encryption/decryption functions
+├── replace.ts      # File replacement operations
+├── install-hook.ts # Git hook installer
+└── test.ts         # Test suite
+```
 

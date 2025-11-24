@@ -1,0 +1,240 @@
+#!/usr/bin/env node
+import { test, describe, before, after } from 'node:test';
+import * as assert from 'node:assert';
+import * as fs from 'fs';
+import * as path from 'path';
+import { execSync } from 'child_process';
+
+// Test configuration
+const TEST_REPO_DIR = '/tmp/uu-secret-manager-test-repo';
+const TEST_DATA_SOURCE = path.join(__dirname, '..', 'test-data');
+const DIST_DIR = path.join(__dirname, '..');
+const CLI_PATH = path.join(DIST_DIR, 'cli.js');
+const TEST_PASSWORD = 'testpassword';
+
+// Test secrets - these match the secrets in test-data files
+const secrets = [
+  'super_secret_password_123',
+  'sk-1234567890abcdefghijklmnop',
+  'my_api_secret_key_xyz',
+  'jwt_token_secret_12345',
+  'sk_test_stripe_key_abc123'
+];
+
+// Helper functions
+function execCommand(command: string, cwd: string = TEST_REPO_DIR): string {
+  try {
+    return execSync(command, {
+      encoding: 'utf8',
+      cwd,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+  } catch (err: any) {
+    return (err.stdout || '') + (err.stderr || '');
+  }
+}
+
+function execCommandWithPassword(command: string, password: string = TEST_PASSWORD, cwd: string = TEST_REPO_DIR): string {
+  const passwordFile = path.join(cwd, '.test-password');
+  fs.writeFileSync(passwordFile, password);
+  
+  try {
+    const result = execSync(`${command} -f ${passwordFile}`, {
+      encoding: 'utf8',
+      cwd,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    fs.unlinkSync(passwordFile);
+    return result;
+  } catch (err: any) {
+    if (fs.existsSync(passwordFile)) {
+      fs.unlinkSync(passwordFile);
+    }
+    return [err.stdout || '', err.stderr || '', err.message || ''].join('\n');
+  }
+}
+
+function setupTestRepo(): void {
+  if (fs.existsSync(TEST_REPO_DIR)) {
+    fs.rmSync(TEST_REPO_DIR, { recursive: true, force: true });
+  }
+  
+  fs.mkdirSync(TEST_REPO_DIR, { recursive: true });
+  execSync('git init', { cwd: TEST_REPO_DIR, stdio: 'ignore' });
+  execSync('git config user.email "test@example.com"', { cwd: TEST_REPO_DIR, stdio: 'ignore' });
+  execSync('git config user.name "Test User"', { cwd: TEST_REPO_DIR, stdio: 'ignore' });
+  
+  copyTestData(TEST_DATA_SOURCE, TEST_REPO_DIR);
+  console.log(`Test repository created at: ${TEST_REPO_DIR}`);
+}
+
+function copyTestData(src: string, dest: string): void {
+  const items = fs.readdirSync(src, { withFileTypes: true });
+  
+  for (const item of items) {
+    const srcPath = path.join(src, item.name);
+    const destPath = path.join(dest, item.name);
+    
+    if (item.name === 'backup' || item.name === '.gitignore' || item.name === 'README.md') {
+      continue;
+    }
+    
+    if (item.isDirectory()) {
+      fs.mkdirSync(destPath, { recursive: true });
+      copyTestData(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+function copyDir(src: string, dest: string): void {
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+  
+  const items = fs.readdirSync(src, { withFileTypes: true });
+  for (const item of items) {
+    const srcPath = path.join(src, item.name);
+    const destPath = path.join(dest, item.name);
+    
+    if (item.isDirectory() && !item.name.startsWith('.') && item.name !== 'backup') {
+      copyDir(srcPath, destPath);
+    } else if (item.isFile() && !item.name.includes('uu-secret-manager')) {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+function cleanup(): void {
+  if (fs.existsSync(TEST_REPO_DIR)) {
+    fs.rmSync(TEST_REPO_DIR, { recursive: true, force: true });
+    console.log('Cleaned up test repository');
+  }
+}
+
+// Main test suite
+describe('uu-secret-manager', () => {
+  before(() => {
+    setupTestRepo();
+  });
+
+  after(() => {
+    cleanup();
+  });
+
+  describe('Secret Management', () => {
+    test('should add secrets via stdin password', () => {
+      const secret = 'test_stdin_secret';
+      const output = execSync(`echo "${TEST_PASSWORD}" | node ${CLI_PATH} -r ${TEST_REPO_DIR} add "${secret}"`, {
+        encoding: 'utf8',
+        cwd: TEST_REPO_DIR,
+        shell: '/bin/bash',
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+      assert.ok(output.includes('Secret added'), 'Should add secret via stdin');
+    });
+
+    test('should add secrets via password file', () => {
+      const secret = 'test_file_secret';
+      const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} add "${secret}"`);
+      assert.ok(output.includes('Secret added'), 'Should add secret via password file');
+    });
+
+    test('should add secrets to the store', () => {
+      for (const secret of secrets) {
+        const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} add "${secret}"`);
+        assert.ok(!output.includes('Error'), 'Should not have errors');
+      }
+      
+      const secretsFile = path.join(TEST_REPO_DIR, 'uu-secret-manager.json');
+      assert.ok(fs.existsSync(secretsFile), 'Secrets file should exist');
+    });
+
+    test('should list all secrets', () => {
+      const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} list`);
+      
+      for (const secret of secrets) {
+        assert.ok(output.includes(secret), `Should list secret: ${secret}`);
+      }
+    });
+
+    test('should add secret with description', () => {
+      const secret = 'secret_with_description';
+      const description = 'This is a test description';
+      const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} add "${secret}" "${description}"`);
+      
+      assert.ok(output.includes('Secret added'), 'Should add secret');
+      assert.ok(output.includes(description), 'Should show description in output');
+    });
+
+    test('should prevent duplicate secrets', () => {
+      const duplicate = secrets[0];
+      const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} add "${duplicate}"`);
+      
+      assert.ok(output.toLowerCase().includes('error') || output.toLowerCase().includes('already exists'), 
+        'Should prevent adding duplicate secret');
+    });
+  });
+
+  describe('Replace and Reverse Operations', () => {
+    let backupDir: string;
+
+    before(() => {
+      backupDir = path.join(TEST_REPO_DIR, 'backup');
+      copyDir(TEST_REPO_DIR, backupDir);
+    });
+
+    test('should replace secrets with placeholders', () => {
+      const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} replace`);
+      assert.ok(!output.includes('Error'), 'Should not have errors');
+    });
+
+    test('should have placeholders in files', () => {
+      let foundPlaceholders = false;
+      
+      const checkDir = (dir: string): void => {
+        if (!fs.existsSync(dir)) return;
+        const files = fs.readdirSync(dir, { withFileTypes: true });
+        for (const file of files) {
+          const fullPath = path.join(dir, file.name);
+          if (file.isDirectory() && file.name !== 'backup' && !file.name.startsWith('.')) {
+            checkDir(fullPath);
+          } else if (file.isFile() && !file.name.includes('README') && !file.name.includes('uu-secret-manager')) {
+            const content = fs.readFileSync(fullPath, 'utf8');
+            if (content.includes('<!secret_')) {
+              foundPlaceholders = true;
+            }
+          }
+        }
+      };
+      
+      checkDir(TEST_REPO_DIR);
+      assert.ok(foundPlaceholders, 'Should find placeholders in files');
+    });
+
+    test('should reverse placeholders back to secrets', () => {
+      const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} reverse`);
+      assert.ok(!output.includes('Error'), 'Should not have errors');
+    });
+  });
+
+  describe('Git Hook', () => {
+    test('should install git hook', () => {
+      const output = execCommand(`node ${CLI_PATH} -r ${TEST_REPO_DIR} install-hook`);
+      
+      const hookPath = path.join(TEST_REPO_DIR, '.git', 'hooks', 'pre-commit');
+      assert.ok(fs.existsSync(hookPath), 'Hook file should exist');
+      
+      const stats = fs.statSync(hookPath);
+      assert.ok(stats.mode & 0o111, 'Hook should be executable');
+    });
+
+    test('should remove git hook', () => {
+      const output = execCommand(`node ${CLI_PATH} -r ${TEST_REPO_DIR} remove-hook`);
+      
+      const hookPath = path.join(TEST_REPO_DIR, '.git', 'hooks', 'pre-commit');
+      assert.ok(!fs.existsSync(hookPath), 'Hook file should be removed');
+    });
+  });
+});
