@@ -42,8 +42,7 @@ const child_process_1 = require("child_process");
 // Test configuration
 const TEST_REPO_DIR = '/tmp/uu-secret-manager-test-repo';
 const TEST_DATA_SOURCE = path.join(__dirname, '..', 'test-data');
-const DIST_DIR = path.join(__dirname, '..');
-const CLI_PATH = path.join(DIST_DIR, 'cli.js');
+const CLI_PATH = path.join(__dirname, 'cli.js');
 const TEST_PASSWORD = 'testpassword';
 // Test secrets - these match the secrets in test-data files
 const secrets = [
