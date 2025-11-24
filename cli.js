@@ -57,22 +57,30 @@ program
   });
 
 program
-  .command('replace <directory>')
+  .command('replace <path>')
   .option('-s, --secrets <path>', 'Path to secrets.json (encrypted)', 'secrets.json')
   .description('Replace secrets in files with placeholders')
-  .action(async (directory, options) => {
+  .action(async (targetPath, options) => {
     try {
       const secretsPath = path.resolve(options.secrets || 'secrets.json');
       const password = await vault.promptPassword('Vault password: ');
       const decrypted = await vault.decryptVaultFile(secretsPath, password);
       const secrets = JSON.parse(decrypted);
       let replacedFiles = 0;
-      replace.walkDir(directory, (filePath) => {
-        if (replace.replaceSecretsInFile(filePath, secrets)) {
-          console.log(`Replaced secrets in: ${filePath}`);
+      const stats = require('fs').statSync(targetPath);
+      if (stats.isFile()) {
+        if (replace.replaceSecretsInFile(targetPath, secrets)) {
+          console.log(`Replaced secrets in: ${targetPath}`);
           replacedFiles++;
         }
-      });
+      } else {
+        replace.walkDir(targetPath, (filePath) => {
+          if (replace.replaceSecretsInFile(filePath, secrets)) {
+            console.log(`Replaced secrets in: ${filePath}`);
+            replacedFiles++;
+          }
+        });
+      }
       if (replacedFiles === 0) {
         console.log('No secrets replaced.');
       }
@@ -82,22 +90,30 @@ program
   });
 
 program
-  .command('reverse <directory>')
+  .command('reverse <path>')
   .option('-s, --secrets <path>', 'Path to secrets.json (encrypted)', 'secrets.json')
   .description('Reverse placeholders back to secrets in files')
-  .action(async (directory, options) => {
+  .action(async (targetPath, options) => {
     try {
       const secretsPath = path.resolve(options.secrets || 'secrets.json');
       const password = await vault.promptPassword('Vault password: ');
       const decrypted = await vault.decryptVaultFile(secretsPath, password);
       const secrets = JSON.parse(decrypted);
       let reversedFiles = 0;
-      replace.walkDir(directory, (filePath) => {
-        if (replace.reverseSecretsInFile(filePath, secrets)) {
-          console.log(`Reversed placeholders in: ${filePath}`);
+      const stats = require('fs').statSync(targetPath);
+      if (stats.isFile()) {
+        if (replace.reverseSecretsInFile(targetPath, secrets)) {
+          console.log(`Reversed placeholders in: ${targetPath}`);
           reversedFiles++;
         }
-      });
+      } else {
+        replace.walkDir(targetPath, (filePath) => {
+          if (replace.reverseSecretsInFile(filePath, secrets)) {
+            console.log(`Reversed placeholders in: ${filePath}`);
+            reversedFiles++;
+          }
+        });
+      }
       if (reversedFiles === 0) {
         console.log('No placeholders reversed.');
       }

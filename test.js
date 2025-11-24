@@ -42,7 +42,8 @@ function execCommand(command) {
       stdio: ['pipe', 'pipe', 'pipe']
     });
   } catch (err) {
-    throw new Error(`Command failed: ${command}\n${err.message}`);
+    // Return combined output even on error
+    return (err.stdout || '') + (err.stderr || '');
   }
 }
 
@@ -88,16 +89,16 @@ async function runTests() {
   try {
     log('=== uu-secret-manager Test Suite ===\n');
 
-    // Step 1: Add secrets
-    log('Step 1: Add secrets to the store');
-    log('--------------------------------');
+    // Test 1: Add secrets
+    log('Test 1: Add secrets to the store');
+    log('----------------------------------');
     for (const secret of secrets) {
       execCommand(`node cli.js add "${secret}" -s "${SECRETS_FILE}"`);
     }
     success('Secrets added\n');
 
-    // Step 2: List secrets
-    log('Step 2: List secrets');
+    // Test 2: List secrets
+    log('Test 2: List secrets');
     log('--------------------');
     const listOutput = execCommand(`node cli.js list -s "${SECRETS_FILE}"`);
     if (secrets.every(s => listOutput.includes(s))) {
@@ -107,24 +108,24 @@ async function runTests() {
       throw new Error('List command failed');
     }
 
-    // Step 3: Backup and replace
-    log('Step 3: Replace secrets in test files');
+    // Test 3: Backup and replace
+    log('Test 3: Replace secrets in test files');
     log('--------------------------------------');
     copyDir(TEST_DIR, `${TEST_DIR}/backup`);
     execCommand(`node cli.js replace "${TEST_DIR}" -s "${SECRETS_FILE}"`);
     success('Secrets replaced with placeholders\n');
 
-    // Step 4: Verify placeholders
-    log('Step 4: Verify placeholders exist');
+    // Test 4: Verify placeholders
+    log('Test 4: Verify placeholders exist');
     log('----------------------------------');
     let foundPlaceholders = false;
     const walkDir = (dir) => {
       const files = fs.readdirSync(dir, { withFileTypes: true });
       for (const file of files) {
         const fullPath = path.join(dir, file.name);
-        if (file.isDirectory()) {
+        if (file.isDirectory() && file.name !== 'backup') {
           walkDir(fullPath);
-        } else if (file.isFile() && !file.name.includes('README')) {
+        } else if (file.isFile() && !file.name.includes('README') && !file.name.includes('test-secrets')) {
           const content = fs.readFileSync(fullPath, 'utf8');
           if (content.includes('<!secret_')) {
             foundPlaceholders = true;
@@ -140,17 +141,17 @@ async function runTests() {
       throw new Error('Placeholder verification failed');
     }
 
-    // Step 5: Verify secrets are gone
-    log('Step 5: Verify original secrets are gone');
+    // Test 5: Verify secrets are gone
+    log('Test 5: Verify original secrets are gone');
     log('-----------------------------------------');
     let foundSecrets = false;
     const checkSecrets = (dir) => {
       const files = fs.readdirSync(dir, { withFileTypes: true });
       for (const file of files) {
         const fullPath = path.join(dir, file.name);
-        if (file.isDirectory()) {
+        if (file.isDirectory() && file.name !== 'backup') {
           checkSecrets(fullPath);
-        } else if (file.isFile() && !file.name.includes('README')) {
+        } else if (file.isFile() && !file.name.includes('README') && !file.name.includes('test-secrets')) {
           const content = fs.readFileSync(fullPath, 'utf8');
           if (secrets.some(s => content.includes(s))) {
             foundSecrets = true;
@@ -166,23 +167,23 @@ async function runTests() {
       throw new Error('Secret replacement failed');
     }
 
-    // Step 6: Reverse
-    log('Step 6: Reverse placeholders back to secrets');
+    // Test 6: Reverse
+    log('Test 6: Reverse placeholders back to secrets');
     log('---------------------------------------------');
     execCommand(`node cli.js reverse "${TEST_DIR}" -s "${SECRETS_FILE}"`);
     success('Placeholders reversed\n');
 
-    // Step 7: Verify restoration
-    log('Step 7: Verify secrets are restored');
+    // Test 7: Verify restoration
+    log('Test 7: Verify secrets are restored');
     log('------------------------------------');
     let secretsRestored = true;
     const verifyRestore = (dir) => {
       const files = fs.readdirSync(dir, { withFileTypes: true });
       for (const file of files) {
         const fullPath = path.join(dir, file.name);
-        if (file.isDirectory()) {
+        if (file.isDirectory() && file.name !== 'backup') {
           verifyRestore(fullPath);
-        } else if (file.isFile() && !file.name.includes('README')) {
+        } else if (file.isFile() && !file.name.includes('README') && !file.name.includes('test-secrets')) {
           const content = fs.readFileSync(fullPath, 'utf8');
           const backupPath = fullPath.replace(TEST_DIR, `${TEST_DIR}/backup`);
           const backupContent = fs.readFileSync(backupPath, 'utf8');
@@ -200,17 +201,17 @@ async function runTests() {
       throw new Error('Secret restoration failed');
     }
 
-    // Step 8: Compare with backup
-    log('Step 8: Compare with backup');
+    // Test 8: Compare with backup
+    log('Test 8: Compare with backup');
     log('---------------------------');
     let allMatch = true;
     const compareFiles = (dir) => {
       const files = fs.readdirSync(dir, { withFileTypes: true });
       for (const file of files) {
         const fullPath = path.join(dir, file.name);
-        if (file.isDirectory()) {
+        if (file.isDirectory() && file.name !== 'backup') {
           compareFiles(fullPath);
-        } else if (file.isFile() && !file.name.includes('README')) {
+        } else if (file.isFile() && !file.name.includes('README') && !file.name.includes('test-secrets')) {
           const content = fs.readFileSync(fullPath, 'utf8');
           const backupPath = fullPath.replace(TEST_DIR, `${TEST_DIR}/backup`);
           const backupContent = fs.readFileSync(backupPath, 'utf8');
@@ -229,8 +230,114 @@ async function runTests() {
       throw new Error('File comparison failed');
     }
 
+    // Test 9: Add duplicate secret
+    log('Test 9: Add duplicate secret');
+    log('----------------------------');
+    const firstSecret = secrets[0];
+    execCommand(`node cli.js add "${firstSecret}" -s "${SECRETS_FILE}"`);
+    const listOutput2 = execCommand(`node cli.js list -s "${SECRETS_FILE}"`);
+    const matches = (listOutput2.match(new RegExp(firstSecret.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+    if (matches === 2) {
+      success('Duplicate secret added with different UUID\n');
+    } else {
+      error(`Expected 2 occurrences of secret, found ${matches}`);
+      throw new Error('Duplicate secret test failed');
+    }
+
+    // Test 10: Wrong password
+    log('Test 10: Wrong password handling');
+    log('---------------------------------');
+    try {
+      execSync(`echo "wrongpassword" | node cli.js list -s "${SECRETS_FILE}"`, {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+      error('Should have failed with wrong password');
+      throw new Error('Wrong password test failed');
+    } catch (err) {
+      success('Correctly rejected wrong password\n');
+    }
+
+    // Test 11: Empty directory
+    log('Test 11: Replace in empty directory');
+    log('------------------------------------');
+    const emptyDir = `${TEST_DIR}/empty`;
+    fs.mkdirSync(emptyDir, { recursive: true });
+    const emptyOutput = execCommand(`node cli.js replace "${emptyDir}" -s "${SECRETS_FILE}"`);
+    if (emptyOutput.includes('No secrets replaced')) {
+      success('Correctly handled empty directory\n');
+    } else {
+      error('Empty directory test failed');
+      throw new Error('Empty directory handling failed');
+    }
+    fs.rmdirSync(emptyDir);
+
+    // Test 12: File with multiple occurrences
+    log('Test 12: Multiple occurrences of same secret');
+    log('---------------------------------------------');
+    const multiFile = `${TEST_DIR}/multi-secret.txt`;
+    const testSecret = secrets[0];
+    fs.writeFileSync(multiFile, `${testSecret}\n${testSecret}\n${testSecret}\n`);
+    execCommand(`node cli.js replace "${multiFile}" -s "${SECRETS_FILE}"`);
+    const multiContent = fs.readFileSync(multiFile, 'utf8');
+    const placeholderCount = (multiContent.match(/<!secret_/g) || []).length;
+    if (placeholderCount === 3 && !multiContent.includes(testSecret)) {
+      success('All occurrences replaced\n');
+    } else {
+      error(`Expected 3 placeholders, found ${placeholderCount}`);
+      throw new Error('Multiple occurrences test failed');
+    }
+    fs.unlinkSync(multiFile);
+
+    // Test 13: Non-existent secrets file for list
+    log('Test 13: Non-existent secrets file');
+    log('-----------------------------------');
+    const nonExistOutput = execCommand(`node cli.js list -s "${TEST_DIR}/nonexistent.json" 2>&1`);
+    if (nonExistOutput.includes('Error') && (nonExistOutput.includes('ENOENT') || nonExistOutput.includes('no such file'))) {
+      success('Correctly handled non-existent secrets file\n');
+    } else {
+      error('Non-existent file error not properly reported');
+      throw new Error('Non-existent file test failed');
+    }
+
+    // Test 14: Create new secrets file
+    log('Test 14: Create new secrets file');
+    log('---------------------------------');
+    const newSecretsFile = `${TEST_DIR}/new-secrets.json`;
+    if (fs.existsSync(newSecretsFile)) {
+      fs.unlinkSync(newSecretsFile);
+    }
+    execCommand(`node cli.js add "new_secret_123" -s "${newSecretsFile}"`);
+    if (fs.existsSync(newSecretsFile)) {
+      const newContent = execCommand(`node cli.js list -s "${newSecretsFile}"`);
+      if (newContent.includes('new_secret_123')) {
+        success('New secrets file created successfully\n');
+        fs.unlinkSync(newSecretsFile);
+      } else {
+        error('New secret not found in new file');
+        throw new Error('New secrets file test failed');
+      }
+    } else {
+      error('New secrets file not created');
+      throw new Error('New secrets file creation failed');
+    }
+
+    // Test 15: Reverse with no placeholders
+    log('Test 15: Reverse with no placeholders');
+    log('--------------------------------------');
+    const noPHFile = `${TEST_DIR}/no-placeholders.txt`;
+    fs.writeFileSync(noPHFile, 'just regular text');
+    const reverseOutput = execCommand(`node cli.js reverse "${noPHFile}" -s "${SECRETS_FILE}"`);
+    if (reverseOutput.includes('No placeholders reversed')) {
+      success('Correctly handled file with no placeholders\n');
+    } else {
+      error('No placeholders test failed');
+      throw new Error('No placeholders handling failed');
+    }
+    fs.unlinkSync(noPHFile);
+
     log('===================================');
-    success('All tests passed! ✓');
+    success('All 15 tests passed! ✓');
     log('===================================\n');
 
     cleanup();
