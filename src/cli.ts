@@ -40,11 +40,11 @@ function getSecretsPath(repoPath?: string): string {
     console.error('Initialize a git repo with: git init');
     process.exit(1);
   }
-  return path.join(gitRoot, 'uu-secret-manager.json');
+  return path.join(gitRoot, 'repo-secret-manager.json');
 }
 
 program
-  .name('uu-secret-manager')
+  .name('repo-secret-manager')
   .description('CLI to manage secrets in files and folders')
   .version('2.0.0')
   .option('-r, --repo <path>', 'Path to git repository (default: current directory)', '.')
@@ -58,10 +58,10 @@ Password Options (in priority order):
   4. prompt: Interactive password prompt (default)
 
 Examples:
-  $ echo "mypassword" | usm add "my_secret" "Database password"
-  $ usm add "api_key_123"  # Without description
-  $ usm -f ~/.vault-pass list
-  $ usm -p mypassword replace
+  $ echo "mypassword" | rsm add "my_secret" "Database password"
+  $ rsm add "api_key_123"  # Without description
+  $ rsm -f ~/.vault-pass list
+  $ rsm -p mypassword replace
 `);
 
 program
@@ -278,8 +278,8 @@ program
     }
     
     const hookContent = fs.readFileSync(hookPath, 'utf8');
-    if (!hookContent.includes('uu-secret-manager')) {
-      console.log(`${YELLOW}ℹ️  Pre-commit hook is not from uu-secret-manager${RESET}`);
+    if (!hookContent.includes('repo-secret-manager')) {
+      console.log(`${YELLOW}ℹ️  Pre-commit hook is not from repo-secret-manager${RESET}`);
       process.exit(0);
     }
     

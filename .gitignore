@@ -4,11 +4,11 @@ node_modules/
 dist/
 
 # Test artifacts - tests run in /tmp but keep test-data for reference
-test-data/uu-secret-manager.json
+test-data/repo-secret-manager.json
 test-data/backup/
 
 # Secrets file
-uu-secret-manager.json
+repo-secret-manager.json
 
 # Logs
 *.log

@@ -6,7 +6,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 
 // Test configuration
-const TEST_REPO_DIR = '/tmp/uu-secret-manager-test-repo';
+const TEST_REPO_DIR = '/tmp/repo-secret-manager-test-repo';
 const TEST_DATA_SOURCE = path.join(__dirname, '..', 'test-data');
 const CLI_PATH = path.join(__dirname, 'cli.js');
 const TEST_PASSWORD = 'testpassword';
@@ -99,7 +99,7 @@ function copyDir(src: string, dest: string): void {
     
     if (item.isDirectory() && !item.name.startsWith('.') && item.name !== 'backup') {
       copyDir(srcPath, destPath);
-    } else if (item.isFile() && !item.name.includes('uu-secret-manager')) {
+    } else if (item.isFile() && !item.name.includes('repo-secret-manager')) {
       fs.copyFileSync(srcPath, destPath);
     }
   }
@@ -113,7 +113,7 @@ function cleanup(): void {
 }
 
 // Main test suite
-describe('uu-secret-manager', () => {
+describe('repo-secret-manager', () => {
   before(() => {
     setupTestRepo();
   });
@@ -146,7 +146,7 @@ describe('uu-secret-manager', () => {
         assert.ok(!output.includes('Error'), 'Should not have errors');
       }
       
-      const secretsFile = path.join(TEST_REPO_DIR, 'uu-secret-manager.json');
+      const secretsFile = path.join(TEST_REPO_DIR, 'repo-secret-manager.json');
       assert.ok(fs.existsSync(secretsFile), 'Secrets file should exist');
     });
 
@@ -199,7 +199,7 @@ describe('uu-secret-manager', () => {
           const fullPath = path.join(dir, file.name);
           if (file.isDirectory() && file.name !== 'backup' && !file.name.startsWith('.')) {
             checkDir(fullPath);
-          } else if (file.isFile() && !file.name.includes('README') && !file.name.includes('uu-secret-manager')) {
+          } else if (file.isFile() && !file.name.includes('README') && !file.name.includes('repo-secret-manager')) {
             const content = fs.readFileSync(fullPath, 'utf8');
             if (content.includes('<!secret_')) {
               foundPlaceholders = true;

@@ -1,4 +1,4 @@
-# uu-secret-manager
+# repo-secret-manager
 
 A Node.js CLI tool to manage secrets in Git repositories using encrypted storage with ansible-vault. Written in TypeScript for type safety and better developer experience.
 
@@ -39,7 +39,7 @@ To prevent accidentally committing secrets, install the pre-commit hook:
 ```bash
 npx . install-hook
 # or if installed globally:
-uu-secret-manager install-hook
+repo-secret-manager install-hook
 ```
 
 To remove the hook:
@@ -47,7 +47,7 @@ To remove the hook:
 ```bash
 npx . remove-hook
 # or if installed globally:
-uu-secret-manager remove-hook
+repo-secret-manager remove-hook
 ```
 
 This will install a git pre-commit hook that:
@@ -67,12 +67,12 @@ All commands work from anywhere within your git repository. The tool automatical
 ### Add a Secret
 
 Add a new secret to the encrypted store. The tool will generate a UUID and return the placeholder.
-The secrets file will be created in the root of your git repository as `uu-secret-manager.json`.
+The secrets file will be created in the root of your git repository as `repo-secret-manager.json`.
 
 ```bash
-uu-secret-manager add "my-secret-password"
+repo-secret-manager add "my-secret-password"
 # or with npx:
-npx uu-secret-manager add "my-secret-password"
+npx repo-secret-manager add "my-secret-password"
 ```
 
 Output:
@@ -86,9 +86,9 @@ Secret added with placeholder: <!secret_35f8756c-5cf3-455e-b843-b73fa87769c6!>
 List all secrets stored in the encrypted file.
 
 ```bash
-uu-secret-manager list
+repo-secret-manager list
 # or with npx:
-npx uu-secret-manager list
+npx repo-secret-manager list
 ```
 
 ### Replace Secrets in Files
@@ -97,13 +97,13 @@ Replace all secrets in files with their placeholders. You can specify a path (fi
 
 ```bash
 # Replace in entire repository
-uu-secret-manager replace
+repo-secret-manager replace
 
 # Replace in specific directory
-uu-secret-manager replace ./src
+repo-secret-manager replace ./src
 
 # Replace in specific file
-uu-secret-manager replace ./config/database.yml
+repo-secret-manager replace ./config/database.yml
 ```
 
 ### Reverse Placeholders to Secrets
@@ -112,19 +112,19 @@ Restore all placeholders in files back to their original secret values. You can 
 
 ```bash
 # Reverse in entire repository
-uu-secret-manager reverse
+repo-secret-manager reverse
 
 # Reverse in specific directory
-uu-secret-manager reverse ./src
+repo-secret-manager reverse ./src
 
 # Reverse in specific file
-uu-secret-manager reverse ./config/database.yml
+repo-secret-manager reverse ./config/database.yml
 ```
 
 ## How It Works
 
 1. **Git Repository**: The tool finds the root of your git repository automatically
-2. **Encryption**: Secrets are stored in `uu-secret-manager.json` at the repository root, encrypted with ansible-vault
+2. **Encryption**: Secrets are stored in `repo-secret-manager.json` at the repository root, encrypted with ansible-vault
 3. **Password Prompt**: The tool prompts for the vault password when accessing secrets
 4. **UUID Mapping**: Each secret is mapped to a UUID (e.g., `35f8756c-5cf3-455e-b843-b73fa87769c6`)
 5. **Placeholder Format**: Secrets are replaced with `<!secret_{uuid}!>` in files
@@ -133,9 +133,9 @@ uu-secret-manager reverse ./config/database.yml
 ## Security Notes
 
 - The secrets file remains encrypted on disk at all times
-- The secrets file is stored at the repository root as `uu-secret-manager.json`
+- The secrets file is stored at the repository root as `repo-secret-manager.json`
 - The vault password is prompted each time the tool runs
-- Add `uu-secret-manager.json` to `.gitignore` if you don't want to commit it (though it's encrypted)
+- Add `repo-secret-manager.json` to `.gitignore` if you don't want to commit it (though it's encrypted)
 - Use the pre-commit hook to prevent accidentally committing unencrypted secrets
 
 ## Example Workflow
@@ -145,14 +145,14 @@ uu-secret-manager reverse ./config/database.yml
 git init
 
 # 2. Add secrets to the store
-uu-secret-manager add "database-password-123"
+repo-secret-manager add "database-password-123"
 # Output: Secret added with placeholder: <!secret_abc-123!>
 
-uu-secret-manager add "api-key-xyz"
+repo-secret-manager add "api-key-xyz"
 # Output: Secret added with placeholder: <!secret_def-456!>
 
 # 3. Replace secrets in your project files
-uu-secret-manager replace
+repo-secret-manager replace
 
 # 4. Your files now contain placeholders instead of secrets
 # Example: connection_string = "postgres://user:<!secret_abc-123!>@localhost/db"
@@ -162,14 +162,14 @@ git add .
 git commit -m "Use secret placeholders"
 
 # 6. To restore secrets (e.g., before deployment):
-uu-secret-manager reverse
+repo-secret-manager reverse
 
 # 7. List all stored secrets
-uu-secret-manager list
+repo-secret-manager list
 
 # 8. Work with a different repository
-uu-secret-manager -r /path/to/other/repo add "another-secret"
-uu-secret-manager -r /path/to/other/repo list
+repo-secret-manager -r /path/to/other/repo add "another-secret"
+repo-secret-manager -r /path/to/other/repo list
 ```
 
 ## License

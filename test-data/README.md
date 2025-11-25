@@ -1,6 +1,6 @@
 # Test Data
 
-This folder contains sample files with secrets for testing the `uu-secret-manager` tool.
+This folder contains sample files with secrets for testing the `repo-secret-manager` tool.
 
 ## Test Files
 

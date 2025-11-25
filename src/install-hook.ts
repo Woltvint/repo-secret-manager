@@ -36,7 +36,7 @@ function installHook(): void {
   // Check if hook already exists
   if (fs.existsSync(hookDest)) {
     const existingContent = fs.readFileSync(hookDest, 'utf8');
-    if (existingContent.includes('uu-secret-manager')) {
+    if (existingContent.includes('repo-secret-manager')) {
       console.log(`${YELLOW}ℹ️  Pre-commit hook already installed${RESET}`);
       process.exit(0);
     }
