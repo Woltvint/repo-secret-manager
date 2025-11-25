@@ -1,7 +1,7 @@
 node_modules/
 
-# Build artifacts
-dist/
+# Build artifacts (dist is committed for npx github: usage)
+# dist/
 
 # Test artifacts - tests run in /tmp but keep test-data for reference
 test-data/repo-secret-manager.json
