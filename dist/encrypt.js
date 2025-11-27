@@ -33,6 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getGitModifiedFiles = getGitModifiedFiles;
 exports.matchesPattern = matchesPattern;
 exports.isGitIgnored = isGitIgnored;
 exports.walkDir = walkDir;
@@ -44,6 +45,34 @@ exports.decryptIndexedFiles = decryptIndexedFiles;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const child_process_1 = require("child_process");
+/**
+ * Gets list of modified files in git (staged and unstaged)
+ * @param gitRoot - Root directory of the git repository
+ * @returns Array of absolute file paths that have been modified
+ */
+function getGitModifiedFiles(gitRoot) {
+    try {
+        // Get both staged and unstaged files
+        const output = (0, child_process_1.execSync)('git diff --name-only HEAD && git diff --name-only --cached', {
+            cwd: gitRoot,
+            encoding: 'utf8',
+            stdio: ['pipe', 'pipe', 'pipe']
+        });
+        const files = output
+            .split('\n')
+            .filter(f => f.trim())
+            .map(f => path.join(gitRoot, f.trim()))
+            // Remove duplicates
+            .filter((file, index, self) => self.indexOf(file) === index)
+            // Only include files that exist
+            .filter(f => fs.existsSync(f) && fs.statSync(f).isFile());
+        return files;
+    }
+    catch (err) {
+        // If git command fails, return empty array
+        return [];
+    }
+}
 /**
  * Checks if a file path matches a glob pattern
  * @param filePath - Path to check
@@ -161,9 +190,10 @@ function decryptSecretsInFile(filePath, secrets) {
  * @param secrets - Map of UUIDs to secret data
  * @param pattern - Optional glob pattern to filter files (e.g., "*.js" or "(*.js|*.json)")
  * @param gitRoot - Optional git root to respect .gitignore
+ * @param specificFiles - Optional array of specific files to index (e.g., git modified files)
  * @returns Array of indexed files with their secret IDs
  */
-function indexFiles(searchPath, secrets, pattern, gitRoot) {
+function indexFiles(searchPath, secrets, pattern, gitRoot, specificFiles) {
     const indexedFiles = [];
     const processFile = (filePath) => {
         // Apply pattern filter if provided
@@ -192,12 +222,18 @@ function indexFiles(searchPath, secrets, pattern, gitRoot) {
             // Skip files that can't be read (binary, permission issues, etc.)
         }
     };
-    const stats = fs.statSync(searchPath);
-    if (stats.isFile()) {
-        processFile(searchPath);
+    // If specific files provided, only process those
+    if (specificFiles && specificFiles.length > 0) {
+        specificFiles.forEach(processFile);
     }
     else {
-        walkDir(searchPath, processFile, gitRoot);
+        const stats = fs.statSync(searchPath);
+        if (stats.isFile()) {
+            processFile(searchPath);
+        }
+        else {
+            walkDir(searchPath, processFile, gitRoot);
+        }
     }
     return indexedFiles;
 }

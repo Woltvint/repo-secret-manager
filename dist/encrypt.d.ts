@@ -13,6 +13,12 @@ export interface SecretsStore {
 }
 export type SecretsMap = Record<string, SecretData | string>;
 /**
+ * Gets list of modified files in git (staged and unstaged)
+ * @param gitRoot - Root directory of the git repository
+ * @returns Array of absolute file paths that have been modified
+ */
+export declare function getGitModifiedFiles(gitRoot: string): string[];
+/**
  * Checks if a file path matches a glob pattern
  * @param filePath - Path to check
  * @param pattern - Glob pattern (e.g., "*.js" or "(*.js|*.json)")
@@ -53,9 +59,10 @@ export declare function decryptSecretsInFile(filePath: string, secrets: SecretsM
  * @param secrets - Map of UUIDs to secret data
  * @param pattern - Optional glob pattern to filter files (e.g., "*.js" or "(*.js|*.json)")
  * @param gitRoot - Optional git root to respect .gitignore
+ * @param specificFiles - Optional array of specific files to index (e.g., git modified files)
  * @returns Array of indexed files with their secret IDs
  */
-export declare function indexFiles(searchPath: string, secrets: SecretsMap, pattern?: string, gitRoot?: string): IndexedFile[];
+export declare function indexFiles(searchPath: string, secrets: SecretsMap, pattern?: string, gitRoot?: string, specificFiles?: string[]): IndexedFile[];
 /**
  * Encrypts secrets only in indexed files
  * @param indexedFiles - Array of indexed files to process

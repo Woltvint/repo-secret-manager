@@ -21,6 +21,36 @@ export interface SecretsStore {
 export type SecretsMap = Record<string, SecretData | string>;
 
 /**
+ * Gets list of modified files in git (staged and unstaged)
+ * @param gitRoot - Root directory of the git repository
+ * @returns Array of absolute file paths that have been modified
+ */
+export function getGitModifiedFiles(gitRoot: string): string[] {
+  try {
+    // Get both staged and unstaged files
+    const output = execSync('git diff --name-only HEAD && git diff --name-only --cached', {
+      cwd: gitRoot,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    
+    const files = output
+      .split('\n')
+      .filter(f => f.trim())
+      .map(f => path.join(gitRoot, f.trim()))
+      // Remove duplicates
+      .filter((file, index, self) => self.indexOf(file) === index)
+      // Only include files that exist
+      .filter(f => fs.existsSync(f) && fs.statSync(f).isFile());
+    
+    return files;
+  } catch (err) {
+    // If git command fails, return empty array
+    return [];
+  }
+}
+
+/**
  * Checks if a file path matches a glob pattern
  * @param filePath - Path to check
  * @param pattern - Glob pattern (e.g., "*.js" or "(*.js|*.json)")
@@ -151,13 +181,15 @@ export function decryptSecretsInFile(filePath: string, secrets: SecretsMap): boo
  * @param secrets - Map of UUIDs to secret data
  * @param pattern - Optional glob pattern to filter files (e.g., "*.js" or "(*.js|*.json)")
  * @param gitRoot - Optional git root to respect .gitignore
+ * @param specificFiles - Optional array of specific files to index (e.g., git modified files)
  * @returns Array of indexed files with their secret IDs
  */
 export function indexFiles(
   searchPath: string,
   secrets: SecretsMap,
   pattern?: string,
-  gitRoot?: string
+  gitRoot?: string,
+  specificFiles?: string[]
 ): IndexedFile[] {
   const indexedFiles: IndexedFile[] = [];
   
@@ -191,11 +223,16 @@ export function indexFiles(
     }
   };
   
-  const stats = fs.statSync(searchPath);
-  if (stats.isFile()) {
-    processFile(searchPath);
+  // If specific files provided, only process those
+  if (specificFiles && specificFiles.length > 0) {
+    specificFiles.forEach(processFile);
   } else {
-    walkDir(searchPath, processFile, gitRoot);
+    const stats = fs.statSync(searchPath);
+    if (stats.isFile()) {
+      processFile(searchPath);
+    } else {
+      walkDir(searchPath, processFile, gitRoot);
+    }
   }
   
   return indexedFiles;

@@ -72,6 +72,7 @@ repo-secret-manager remove-hook
 ```
 
 This will install a git pre-commit hook that:
+- Automatically reindexes git-modified files before checking (keeps index up-to-date)
 - Checks staged files for common secret patterns (passwords, API keys, tokens, etc.)
 - Warns you if potential secrets are found
 - Suggests using the tool to encrypt them
@@ -134,21 +135,31 @@ The CSV file will contain columns: UUID, Secret, Description, Created, Placehold
 
 Index files containing secrets to dramatically speed up encrypt/decrypt operations. The index stores which files contain secrets, so subsequent encrypt/decrypt commands only process those files instead of scanning the entire repository.
 
+**Default Behavior**: By default, the index command only indexes git-modified files (staged and unstaged changes). This makes it fast and efficient for incremental updates. Use `--all` to index all files in the repository.
+
 ```bash
-# Index all files in repository
+# Index git-modified files (default - fast incremental update)
 repo-secret-manager index
 
-# Index only JavaScript files
+# Index all files in repository
+repo-secret-manager index --all
+
+# Index only JavaScript files that are modified
 repo-secret-manager index . "*.js"
 
-# Index multiple file types
+# Index all JavaScript files (not just modified)
+repo-secret-manager index . "*.js" --all
+
+# Index multiple file types (git-modified only by default)
 repo-secret-manager index . "(*.js|*.json|*.yml)"
 
-# Index specific directory
-repo-secret-manager index ./src "*.ts"
+# Index specific directory (all files)
+repo-secret-manager index ./src --all
 ```
 
 **Performance**: After indexing, encrypt/decrypt operations only process indexed files, making them significantly faster for large repositories.
+
+**Incremental Updates**: The default git-modified behavior makes it easy to keep your index up-to-date by only re-indexing files that have changed.
 
 ### Encrypt Secrets in Files
 

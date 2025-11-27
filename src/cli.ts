@@ -184,7 +184,8 @@ program
 program
   .command('index [path] [pattern]')
   .description('Index files containing secrets for faster encrypt/decrypt operations')
-  .action(async (targetPath: string | undefined, pattern: string | undefined, _options, command) => {
+  .option('--all', 'Index all files (default is git-modified files only)')
+  .action(async (targetPath: string | undefined, pattern: string | undefined, cmdOptions, command) => {
     try {
       const globalOpts = command.parent!.opts();
       const repoPath = globalOpts.repo;
@@ -217,7 +218,19 @@ program
         console.log(`Pattern: ${pattern}`);
       }
       
-      const indexedFiles = encrypt.indexFiles(searchPath, store.secrets, pattern, gitRoot);
+      let specificFiles: string[] | undefined;
+      // Default to git-modified unless --all is specified
+      if (!cmdOptions.all) {
+        console.log('Mode: Git modified files only (use --all to index all files)');
+        specificFiles = encrypt.getGitModifiedFiles(gitRoot);
+        if (specificFiles.length === 0) {
+          console.log('No git-modified files found');
+        }
+      } else {
+        console.log('Mode: Indexing all files');
+      }
+      
+      const indexedFiles = encrypt.indexFiles(searchPath, store.secrets, pattern, gitRoot, specificFiles);
       store.index = indexedFiles;
       
       await vault.encryptVaultFile(secretsPath, password, JSON.stringify(store, null, 2));

@@ -17,6 +17,18 @@ if (!fs.existsSync(secretsPath)) {
   process.exit(0);
 }
 
+// Try to reindex git-modified files for accurate checking
+try {
+  console.log(`${YELLOW}Reindexing git-modified files...${RESET}`);
+  execSync('npx . index', { 
+    encoding: 'utf8',
+    stdio: 'inherit'
+  });
+} catch (error) {
+  // If reindexing fails, continue with the check anyway
+  console.warn(`${YELLOW}Warning: Could not reindex. Continuing with check...${RESET}`);
+}
+
 // Get list of staged files
 let stagedFiles;
 try {
@@ -73,7 +85,7 @@ for (const file of stagedFiles) {
     }
     
     if (fileHasIssues) {
-      console.error(`   ${GREEN}💡 Consider: npx . add "<secret>" then npx . replace "${file}"${RESET}`);
+      console.error(`   ${GREEN}💡 Consider: npx . add "<secret>" then npx . encrypt "${file}"${RESET}`);
     }
     
   } catch (error) {
@@ -88,7 +100,7 @@ if (foundIssues) {
   console.error(`${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}`);
   console.error(`\n${YELLOW}Recommendations:${RESET}`);
   console.error(`  1. Use: ${GREEN}npx . add "<your-secret>"${RESET} to store secrets`);
-  console.error(`  2. Use: ${GREEN}npx . replace <file-or-directory>${RESET} to replace with placeholders`);
+  console.error(`  2. Use: ${GREEN}npx . encrypt <file-or-directory>${RESET} to replace with placeholders`);
   console.error(`  3. Review the changes and stage again\n`);
   console.error(`${YELLOW}To commit anyway (NOT recommended), use: git commit --no-verify${RESET}\n`);
   

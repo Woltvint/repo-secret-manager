@@ -270,6 +270,96 @@ function cleanup() {
             fs.unlinkSync(gitignorePath);
         });
     });
+    (0, node_test_1.describe)('Index Command', () => {
+        (0, node_test_1.test)('should index git-modified files by default', () => {
+            // Commit all current files
+            execCommand('git add .', TEST_REPO_DIR);
+            execCommand('git commit -m "Initial commit" || true', TEST_REPO_DIR);
+            // Create a new modified file
+            const modifiedFile = path.join(TEST_REPO_DIR, 'modified.txt');
+            const testSecret = secrets[0];
+            fs.writeFileSync(modifiedFile, `Modified: ${testSecret}`);
+            execCommand(`git add ${modifiedFile}`, TEST_REPO_DIR);
+            fs.appendFileSync(modifiedFile, '\n// Changed');
+            const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} index`);
+            assert.ok(output.includes('Mode: Git modified files only'), 'Should default to git-modified mode');
+            assert.ok(output.includes('Indexed'), 'Should show indexed count');
+            // Cleanup
+            if (fs.existsSync(modifiedFile)) {
+                fs.unlinkSync(modifiedFile);
+            }
+        });
+        (0, node_test_1.test)('should index all files with --all flag', () => {
+            const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} index --all`);
+            assert.ok(output.includes('Mode: Indexing all files'), 'Should show all files mode');
+            assert.ok(output.includes('Indexed'), 'Should show indexed count');
+            assert.ok(!output.includes('Error'), 'Should not have errors');
+        });
+        (0, node_test_1.test)('should index files with pattern', () => {
+            const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} index . "*.json" --all`);
+            assert.ok(output.includes('Pattern: *.json'), 'Should show pattern');
+            assert.ok(output.includes('Indexed'), 'Should show indexed count');
+        });
+        (0, node_test_1.test)('should index only git-modified files by default', () => {
+            // First, commit all current files
+            execCommand('git add .', TEST_REPO_DIR);
+            execCommand('git commit -m "Initial commit"', TEST_REPO_DIR);
+            // Create a new file with a secret (unstaged)
+            const newFile = path.join(TEST_REPO_DIR, 'new-file.txt');
+            const testSecret = secrets[0];
+            fs.writeFileSync(newFile, `New file with secret: ${testSecret}`);
+            // Modify an existing file (staged change)
+            const existingFile = path.join(TEST_REPO_DIR, 'sample-config.json');
+            if (fs.existsSync(existingFile)) {
+                const content = fs.readFileSync(existingFile, 'utf8');
+                fs.writeFileSync(existingFile, content + `\n// Modified with ${testSecret}`);
+                execCommand(`git add ${existingFile}`, TEST_REPO_DIR);
+            }
+            // Index without flags (should default to git-modified)
+            const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} index`);
+            assert.ok(output.includes('Mode: Git modified files only'), 'Should default to git-modified mode');
+            assert.ok(output.includes('Indexed'), 'Should index files');
+            // Verify it only indexed the modified file, not untracked
+            if (fs.existsSync(existingFile)) {
+                assert.ok(output.includes('sample-config.json') || output.includes('1 files'), 'Should index the staged modified file');
+            }
+            // Cleanup
+            if (fs.existsSync(newFile)) {
+                fs.unlinkSync(newFile);
+            }
+        });
+        (0, node_test_1.test)('should combine default git-modified with pattern', () => {
+            // Create a JSON file and a TXT file, both modified
+            const jsonFile = path.join(TEST_REPO_DIR, 'test-modified.json');
+            const txtFile = path.join(TEST_REPO_DIR, 'test-modified.txt');
+            const testSecret = secrets[1];
+            fs.writeFileSync(jsonFile, `{"secret": "${testSecret}"}`);
+            fs.writeFileSync(txtFile, `Secret: ${testSecret}`);
+            execCommand('git add .', TEST_REPO_DIR);
+            // Modify both files
+            fs.appendFileSync(jsonFile, '\n// Modified');
+            fs.appendFileSync(txtFile, '\n// Modified');
+            // Index only JSON files (git-modified by default)
+            const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} index . "*.json"`);
+            assert.ok(output.includes('Pattern: *.json'), 'Should show pattern');
+            assert.ok(output.includes('Mode: Git modified files only'), 'Should show git-modified mode');
+            // Cleanup
+            if (fs.existsSync(jsonFile)) {
+                fs.unlinkSync(jsonFile);
+            }
+            if (fs.existsSync(txtFile)) {
+                fs.unlinkSync(txtFile);
+            }
+        });
+        (0, node_test_1.test)('should handle no git-modified files', () => {
+            // Commit everything
+            execCommand('git add .', TEST_REPO_DIR);
+            execCommand('git commit -m "Commit all" || true', TEST_REPO_DIR);
+            // Try to index when nothing is modified (default behavior)
+            const output = execCommandWithPassword(`node ${CLI_PATH} -r ${TEST_REPO_DIR} index`);
+            assert.ok(output.includes('No git-modified files found') || output.includes('Indexed 0 files'), 'Should handle no modified files gracefully');
+        });
+    });
     (0, node_test_1.describe)('Git Hook', () => {
         (0, node_test_1.test)('should install git hook', () => {
             const output = execCommand(`node ${CLI_PATH} -r ${TEST_REPO_DIR} install-hook`);
